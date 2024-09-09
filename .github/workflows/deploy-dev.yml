@@ -1,0 +1,73 @@
+name: Staging deployment
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  build:
+    environment: dev
+    runs-on: [self-hosted, dev]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: "./dev-deploy"
+      - run: |
+          touch .env
+          echo NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} >> .env
+          echo NEXT_PUBLIC_ENV=${{ secrets.NEXT_PUBLIC_ENV }} >> .env
+        working-directory: "./dev-deploy/apps/web"
+      - run: |
+          touch .env
+          echo NEXT_PUBLIC_ENV=${{ secrets.NEXT_PUBLIC_ENV }} >> .env
+        working-directory: "./dev-deploy/apps/docs"
+      - run: |
+          touch .env
+          echo SERVER_API_URL=${{ secrets.SERVER_API_URL }} >> .env
+          echo NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }} >> .env
+          echo NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }} >> .env
+          echo NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} >> .env
+          echo NEXT_PUBLIC_ENV=${{ secrets.NEXT_PUBLIC_ENV }} >> .env
+          echo NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }} >> .env
+          echo NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }} >> .env
+        working-directory: "./dev-deploy/apps/app"
+      - run: |
+          touch .env
+          echo BACKEND_DATABASE_CONNECTION=${{ secrets.BACKEND_DATABASE_CONNECTION }} >> .env
+          echo BACKEND_JWT_SECRET=${{ secrets.BACKEND_JWT_SECRET }} >> .env
+          echo BACKEND_LOOPS_API_KEY=${{ secrets.BACKEND_LOOPS_API_KEY }} >> .env
+          echo BACKEND_APP_URL=${{ secrets.BACKEND_APP_URL }} >> .env
+          echo BACKEND_CAPTCHA_SECRET=${{ secrets.BACKEND_CAPTCHA_SECRET }} >> .env
+          echo BACKEND_SLACK_WEBHOOK_URL=${{ secrets.BACKEND_SLACK_WEBHOOK_URL }} >> .env
+          echo BACKEND_LEMONSQUEEZY_WEBHOOK_SECRET=${{ secrets.BACKEND_LEMONSQUEEZY_WEBHOOK_SECRET }} >> .env
+          echo BACKEND_LEMONSQUEEZY_API_KEY=${{ secrets.BACKEND_LEMONSQUEEZY_API_KEY }} >> .env
+          echo BACKEND_LEMONSQUEEZY_STORE_ID=${{ secrets.BACKEND_LEMONSQUEEZY_STORE_ID }} >> .env
+          echo BACKEND_LOGTAIL_TOKEN=${{ secrets.BACKEND_LOGTAIL_TOKEN }} >> .env
+        working-directory: "./dev-deploy/apps/backend"
+      - run: docker build -t docker.flows.sh/app-frontend-dev:${{github.sha}} -f infrastructure/docker/next.Dockerfile --build-arg APP=app .
+        working-directory: "./dev-deploy"
+      - run: docker build -t docker.flows.sh/web-frontend-dev:${{github.sha}} -f infrastructure/docker/next.Dockerfile --build-arg APP=web .
+        working-directory: "./dev-deploy"
+      - run: docker build -t docker.flows.sh/docs-frontend-dev:${{github.sha}} -f infrastructure/docker/next.Dockerfile --build-arg APP=docs .
+        working-directory: "./dev-deploy"
+      - run: docker build -t docker.flows.sh/backend-dev:${{github.sha}} -f infrastructure/docker/nest.Dockerfile .
+        working-directory: "./dev-deploy"
+
+  deploy:
+    needs: [build]
+    runs-on: [self-hosted, dev]
+    steps:
+      - run: docker stop flows-app-frontend-dev
+      - run: docker rm flows-app-frontend-dev
+      - run: docker run -d --restart always -p ${{ env.APP_PORT }}:3000 --network ${{ env.DOCKER_NETWORK }} --name flows-app-frontend-dev docker.flows.sh/app-frontend-dev:${{github.sha}}
+      - run: docker stop flows-web-frontend-dev
+      - run: docker rm flows-web-frontend-dev
+      - run: docker run -d --restart always -p ${{ env.WEB_PORT }}:3000 --name flows-web-frontend-dev docker.flows.sh/web-frontend-dev:${{github.sha}}
+      - run: docker stop flows-docs-frontend-dev
+      - run: docker rm flows-docs-frontend-dev
+      - run: docker run -d --restart always -p ${{ env.DOCS_PORT }}:3000 --name flows-docs-frontend-dev docker.flows.sh/docs-frontend-dev:${{github.sha}}
+      - run: docker stop flows-backend-dev
+      - run: docker rm flows-backend-dev
+      - run: docker run -d --restart always -p ${{ env.BACKEND_PORT }}:3005 --network ${{ env.DOCKER_NETWORK }} --name flows-backend-dev docker.flows.sh/backend-dev:${{github.sha}}

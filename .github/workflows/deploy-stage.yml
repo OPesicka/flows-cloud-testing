@@ -3,13 +3,13 @@ name: Staging deployment
 on:
   push:
     branches:
-      - dev
+      - stage
   workflow_dispatch:
 
 jobs:
   build:
-    environment: staging
-    runs-on: [self-hosted, stage-env]
+    environment: stage
+    runs-on: [self-hosted, stage]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,17 +57,17 @@ jobs:
 
   deploy:
     needs: [build]
-    runs-on: [self-hosted, stage-env]
+    runs-on: [self-hosted, stage]
     steps:
       - run: docker stop flows-app-frontend-stage
       - run: docker rm flows-app-frontend-stage
-      - run: docker run -d --restart always -p 6001:3000 --network flows_supabase_bridge --name flows-app-frontend-stage docker.flows.sh/app-frontend-stage:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ env.APP_PORT }}:3000 --network ${{ env.DOCKER_NETWORK }} --name flows-app-frontend-stage docker.flows.sh/app-frontend-stage:${{github.sha}}
       - run: docker stop flows-web-frontend-stage
       - run: docker rm flows-web-frontend-stage
-      - run: docker run -d --restart always -p 6002:3000 --name flows-web-frontend-stage docker.flows.sh/web-frontend-stage:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ env.WEB_PORT }}:3000 --name flows-web-frontend-stage docker.flows.sh/web-frontend-stage:${{github.sha}}
       - run: docker stop flows-docs-frontend-stage
       - run: docker rm flows-docs-frontend-stage
-      - run: docker run -d --restart always -p 6003:3000 --name flows-docs-frontend-stage docker.flows.sh/docs-frontend-stage:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ env.DOCS_PORT }}:3000 --name flows-docs-frontend-stage docker.flows.sh/docs-frontend-stage:${{github.sha}}
       - run: docker stop flows-backend-stage
       - run: docker rm flows-backend-stage
-      - run: docker run -d --restart always -p 6005:3005 --network flows_supabase_bridge --name flows-backend-stage docker.flows.sh/backend-stage:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ env.BACKEND_PORT }}:3005 --network ${{ env.DOCKER_NETWORK }} --name flows-backend-stage docker.flows.sh/backend-stage:${{github.sha}}
