@@ -1,4 +1,4 @@
-name: Staging deployment
+name: Development deployment
 
 on:
   push:
@@ -56,18 +56,19 @@ jobs:
         working-directory: "./dev-deploy"
 
   deploy:
+    environment: dev
     needs: [build]
     runs-on: [self-hosted, dev]
     steps:
       - run: docker stop flows-app-frontend-dev
       - run: docker rm flows-app-frontend-dev
-      - run: docker run -d --restart always -p ${{ env.APP_PORT }}:3000 --network ${{ env.DOCKER_NETWORK }} --name flows-app-frontend-dev docker.flows.sh/app-frontend-dev:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ vars.APP_PORT }}:3000 --network ${{ vars.DOCKER_NETWORK }} --name flows-app-frontend-dev docker.flows.sh/app-frontend-dev:${{github.sha}}
       - run: docker stop flows-web-frontend-dev
       - run: docker rm flows-web-frontend-dev
-      - run: docker run -d --restart always -p ${{ env.WEB_PORT }}:3000 --name flows-web-frontend-dev docker.flows.sh/web-frontend-dev:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ vars.WEB_PORT }}:3000 --name flows-web-frontend-dev docker.flows.sh/web-frontend-dev:${{github.sha}}
       - run: docker stop flows-docs-frontend-dev
       - run: docker rm flows-docs-frontend-dev
-      - run: docker run -d --restart always -p ${{ env.DOCS_PORT }}:3000 --name flows-docs-frontend-dev docker.flows.sh/docs-frontend-dev:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ vars.DOCS_PORT }}:3000 --name flows-docs-frontend-dev docker.flows.sh/docs-frontend-dev:${{github.sha}}
       - run: docker stop flows-backend-dev
       - run: docker rm flows-backend-dev
-      - run: docker run -d --restart always -p ${{ env.BACKEND_PORT }}:3005 --network ${{ env.DOCKER_NETWORK }} --name flows-backend-dev docker.flows.sh/backend-dev:${{github.sha}}
+      - run: docker run -d --restart always -p ${{ vars.BACKEND_PORT }}:3005 --network ${{ vars.DOCKER_NETWORK }} --name flows-backend-dev docker.flows.sh/backend-dev:${{github.sha}}
